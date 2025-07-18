@@ -1,0 +1,12 @@
+# arguments for dataset
+dataset: FLARE25
+nclass: 14 
+
+# arguments for training
+epochs: 200
+batch_size: 6   
+lr: 0.1
+
+# arguments for model
+model: unet_3d
+backbone: cnn
