@@ -67,7 +67,7 @@ def evaluate_3d_new(loader, model, cfg, ifdist=None, val_mode=None):
                 mask_exp = mask.unsqueeze(0) == classes.unsqueeze(1).unsqueeze(2).unsqueeze(3)           # (nclass-1, D, H, W)
                 pred_exp = pred_mask.unsqueeze(0) == classes.unsqueeze(1).unsqueeze(2).unsqueeze(3)      # (nclass-1, D, H, W)
                 mask_exp, pred_exp = mask_exp.view(cfg['nclass']-1, -1), pred_exp.view(cfg['nclass']-1, -1)
-                intersection = (mask_exp & pred_exp).sum(dim=1)
+                intersection = (mask_exp * pred_exp).sum(dim=1)
                 union = mask_exp.sum(dim=1) + pred_exp.sum(dim=1)
                 dice_class += (2. * intersection) / (union + 1e-7)
                 mDice_organ = dice_class.mean()
