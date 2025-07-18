@@ -16,6 +16,7 @@ def evaluate_3d_new(loader, model, cfg, ifdist=None, val_mode=None):
             all_mDice_organ = 0
             for img, mask, id in tqdm(loader):
                 img, mask = img.cuda(), mask.squeeze(0).cuda()
+                big = False
                 if total_samples==0:
                     dice_class_all = torch.zeros((cfg['nclass']-1,), device=img.device)
                 total_samples += 1
@@ -24,6 +25,8 @@ def evaluate_3d_new(loader, model, cfg, ifdist=None, val_mode=None):
                 score_map = torch.zeros((cfg['nclass'], ) + torch.Size([d, h, w]), device=img.device)
                 count_map = torch.zeros(img.shape[2:], device=img.device)
                 patch_d, patch_h, patch_w = cfg['val_patch_size']
+                if w // patch_w > 4:
+                    big = True
                 # ========================= new =========================
                 num_h = math.ceil(h / patch_h)
                 overlap_h = (patch_h * num_h - h) // (num_h - 1) if num_h > 1 else 0
@@ -67,8 +70,15 @@ def evaluate_3d_new(loader, model, cfg, ifdist=None, val_mode=None):
                 mask_exp = mask.unsqueeze(0) == classes.unsqueeze(1).unsqueeze(2).unsqueeze(3)           # (nclass-1, D, H, W)
                 pred_exp = pred_mask.unsqueeze(0) == classes.unsqueeze(1).unsqueeze(2).unsqueeze(3)      # (nclass-1, D, H, W)
                 mask_exp, pred_exp = mask_exp.view(cfg['nclass']-1, -1), pred_exp.view(cfg['nclass']-1, -1)
-                intersection = (mask_exp * pred_exp).sum(dim=1)
-                union = mask_exp.sum(dim=1) + pred_exp.sum(dim=1)
+                if big:
+                    intersection = torch.zeros(mask_exp.shape[0], device=mask_exp.device)
+                    union = torch.zeros(mask_exp.shape[0], device=mask_exp.device)
+                    for i in range(mask_exp.shape[0]):
+                        intersection[i] = (mask_exp[i] * pred_exp[i]).sum()
+                        union[i] = mask_exp[i].sum() + pred_exp[i].sum()
+                else:
+                    intersection = (mask_exp * pred_exp).sum(dim=1)
+                    union = mask_exp.sum(dim=1) + pred_exp.sum(dim=1)
                 dice_class += (2. * intersection) / (union + 1e-7)
                 mDice_organ = dice_class.mean()
                 all_mDice_organ += mDice_organ
