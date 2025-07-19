@@ -14,8 +14,6 @@ def evaluate_3d_new(loader, model, cfg, ifdist=None, val_mode=None):
     with torch.cuda.stream(stream):
         with torch.no_grad(): 
             all_mDice_organ = 0
-            score_map = torch.zeros((cfg['nclass'], ) + torch.Size([d, h, w]), device=img.device)
-            count_map = torch.zeros(img.shape[2:], device=img.device)
             for img, mask, id in tqdm(loader):
                 img, mask = img.cuda(), mask.squeeze(0).cuda()
                 big = False
@@ -25,7 +23,9 @@ def evaluate_3d_new(loader, model, cfg, ifdist=None, val_mode=None):
                 dice_class = torch.zeros((cfg['nclass']-1,), device=img.device)      # dismiss background
                 _, _, d, h, w = img.shape
                 patch_d, patch_h, patch_w = cfg['val_patch_size']
-                if w // patch_w > 4:
+                score_map = torch.zeros((cfg['nclass'], ) + torch.Size([d, h, w]), device=img.device)
+                count_map = torch.zeros(img.shape[2:], device=img.device)
+                if w // patch_w > 2:
                     big = True
                 # ========================= new =========================
                 num_h = math.ceil(h / patch_h)
