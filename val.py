@@ -4,30 +4,27 @@ import torch.distributed as dist
 import torch, math, argparse, yaml
 
 def evaluate_3d_new(loader, model, cfg, ifdist=None, val_mode=None):
-    if val_mode:
-        print(f"{val_mode} Validation begin")
-    else:
-        print(f"Validation begin")
+    print(f"{val_mode} Validation begin")
     model.eval()
     total_samples = 0
+    all_mDice_organ = 0
+    dice_class_all = torch.zeros((cfg['nclass']-1,), device='cuda')
     stream = torch.cuda.Stream()
-    with torch.cuda.stream(stream):
-        with torch.no_grad(): 
-            all_mDice_organ = 0
-            for img, mask, id in tqdm(loader):
+    with torch.no_grad(): 
+        for img, mask, id in tqdm(loader):
+            with torch.cuda.stream(stream):
                 img, mask = img.cuda(), mask.squeeze(0).cuda()
                 big = False
-                if total_samples==0:
-                    dice_class_all = torch.zeros((cfg['nclass']-1,), device=img.device)
                 total_samples += 1
                 dice_class = torch.zeros((cfg['nclass']-1,), device=img.device)      # dismiss background
                 _, _, d, h, w = img.shape
                 patch_d, patch_h, patch_w = cfg['val_patch_size']
-                score_map = torch.zeros((cfg['nclass'], ) + torch.Size([d, h, w]), device=img.device)
+                score_map = torch.zeros((cfg['nclass'], d, h, w), device=img.device)
                 count_map = torch.zeros(img.shape[2:], device=img.device)
                 if w // patch_w > 2:
                     big = True
-                # ========================= new =========================
+                if (w // patch_w) > 4:
+                        patch_d, patch_h, patch_w = cfg['val_patch_size_small']
                 num_h = math.ceil(h / patch_h)
                 overlap_h = (patch_h * num_h - h) // (num_h - 1) if num_h > 1 else 0
                 stride_h = patch_h - overlap_h
@@ -65,6 +62,8 @@ def evaluate_3d_new(loader, model, cfg, ifdist=None, val_mode=None):
                             count_map[d_id, h_id, w_id] += 1
                 score_map /= count_map
                 pred_mask = score_map.argmax(dim=0)
+                del score_map, count_map, input, pred_patch_logits, pred_patch
+                torch.cuda.empty_cache()
 
                 classes = torch.arange(1, cfg['nclass'], device=mask.device)                             # (nclass-1, 1, 1, 1)
                 mask_exp = mask.unsqueeze(0) == classes.unsqueeze(1).unsqueeze(2).unsqueeze(3)           # (nclass-1, D, H, W)
@@ -83,6 +82,8 @@ def evaluate_3d_new(loader, model, cfg, ifdist=None, val_mode=None):
                 mDice_organ = dice_class.mean()
                 all_mDice_organ += mDice_organ
                 dice_class_all += dice_class
+                del mask_exp, pred_exp, intersection, union, pred_mask
+                torch.cuda.empty_cache()
             total_samples_tensor = torch.tensor(total_samples).cuda()
     if ifdist:
         dist.all_reduce(all_mDice_organ)
@@ -93,11 +94,9 @@ def evaluate_3d_new(loader, model, cfg, ifdist=None, val_mode=None):
     else:
         all_mDice_organ /= total_samples_tensor
         dice_class_all /= total_samples_tensor
-    if val_mode:
-        print(f"{val_mode} Validation end")
-    else:
-        print(f"Validation end")
-    return all_mDice_organ, dice_class_all
+    dice_class_all = [dice / total_samples for dice in dice_class_all.tolist()]
+    print(f"{val_mode} Validation end")
+    return all_mDice_organ.item(), dice_class_all
 
 parser = argparse.ArgumentParser(description='Fixmatch_mt for Flare22')
 parser.add_argument('--config', type=str, default='./configs/flare22_3d_mt.yaml')
