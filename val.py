@@ -104,7 +104,7 @@ def main():
     args = parser.parse_args()
     cfg = yaml.load(open(args.config, "r"), Loader=yaml.Loader)
     model = UNet(1, cfg['nclass'])
-    valset = YourDataset('val', args, cfg['crop_size'])
+    valset = YourDataset()
     valloader = DataLoader(valset, batch_size=1, pin_memory=True, num_workers=1, drop_last=False)
     mean_dice, dice_for_every_class = evaluate_3d_new(valloader, model, cfg, val_mode='model1') 
     # valsampler = DistributedSampler(valset)   # for distrubuted train
