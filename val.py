@@ -106,6 +106,6 @@ def main():
     model = UNet(1, cfg['nclass'])
     valset = YourDataset()
     valloader = DataLoader(valset, batch_size=1, pin_memory=True, num_workers=1, drop_last=False)
-    mean_dice, dice_for_every_class = evaluate_3d_new(valloader, model, cfg, val_mode='model1') 
+    mean_dice, dice_for_every_class = evaluate_3d_new(valloader, model, cfg, val_mode='model') 
     # valsampler = DistributedSampler(valset)   # for distrubuted train
     # valloader = DataLoader(valset, batch_size=1, pin_memory=True, num_workers=1, drop_last=False, sampler=valsampler)
