@@ -99,7 +99,7 @@ def evaluate_3d_new(loader, model, cfg, ifdist=None, val_mode=None):
     return all_mDice_organ.item(), dice_class_all
 
 parser = argparse.ArgumentParser(description='Fixmatch_mt for Flare22')
-parser.add_argument('--config', type=str, default='./configs/flare22_3d_mt.yaml')
+parser.add_argument('--config', type=str, default='./configs/your_trainer.yaml')
 def main():
     args = parser.parse_args()
     cfg = yaml.load(open(args.config, "r"), Loader=yaml.Loader)
