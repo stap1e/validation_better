@@ -4,6 +4,7 @@ import torch.distributed as dist
 import torch, math, argparse, yaml
 
 def evaluate_3d_new(loader, model, cfg, ifdist=None, val_mode=None):
+    # add padding to adapt to different input size
     print(f"{val_mode} Validation begin")
     model.eval()
     total_samples = 0
